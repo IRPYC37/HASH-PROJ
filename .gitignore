@@ -1,0 +1,7 @@
+.keys/*
+.vault-pass
+.terraform/
+*.tfstate
+*.tfstate.*
+collections/
+roles/geerlingguy.git/
