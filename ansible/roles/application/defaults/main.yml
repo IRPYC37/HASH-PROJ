@@ -2,6 +2,7 @@ application_project_dir: /opt/taylor-shift
 application_compose_file: "{{ application_project_dir }}/compose.yml"
 application_image: prestashop/prestashop:latest
 application_port: 80
+application_public_url: localhost:8080
 application_title: Taylor Shift's Ticket Shop
 application_db_host: localhost
 application_db_name: prestashop

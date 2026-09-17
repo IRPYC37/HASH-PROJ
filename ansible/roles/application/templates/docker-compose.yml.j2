@@ -23,7 +23,7 @@ services:
       DB_USER: {{ application_db_user | quote }}
       DB_PASSWD: {{ application_db_password | quote }}
       PS_INSTALL_AUTO: "1"
-      PS_DOMAIN: "{{ ansible_host }}"
+      PS_DOMAIN: "{{ application_public_url }}"
       PS_LANGUAGE: fr
       PS_COUNTRY: fr
 {% if application_use_local_database %}

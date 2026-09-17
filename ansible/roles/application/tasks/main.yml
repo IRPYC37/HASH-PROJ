@@ -53,15 +53,29 @@
       - taylor_shift_db:/var/lib/mysql
   when: application_use_local_database
 
+- name: Synchroniser l'URL publique PrestaShop
+  community.docker.docker_container_exec:
+    container: db
+    command: >-
+      mariadb -uroot -p{{ application_db_root_password | default(application_db_password, true) | quote }}
+      -D {{ application_db_name | quote }}
+      -e "UPDATE ps_shop_url SET domain='{{ application_public_url }}', domain_ssl='{{ application_public_url }}' WHERE id_shop_url=1"
+  register: prestashop_url_sync
+  retries: 10
+  delay: 3
+  until: prestashop_url_sync.rc == 0
+  changed_when: false
+  no_log: true
+  when: application_use_local_database
+
 - name: Démarrer PrestaShop
   community.docker.docker_container:
     name: taylor-shift-prestashop
     image: "{{ application_image }}"
     state: started
-    recreate: true
     restart_policy: unless-stopped
     published_ports:
-      - "127.0.0.1:8080:80"
+      - "8080:80"
     networks:
       - name: taylor-shift
     env:
@@ -71,7 +85,7 @@
       DB_USER: "{{ application_db_user }}"
       DB_PASSWD: "{{ application_db_password }}"
       PS_INSTALL_AUTO: "1"
-      PS_DOMAIN: "{{ ansible_host }}"
+      PS_DOMAIN: "{{ application_public_url }}"
       PS_LANGUAGE: fr
       PS_COUNTRY: fr
     volumes:

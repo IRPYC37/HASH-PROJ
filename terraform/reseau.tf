@@ -104,6 +104,15 @@ resource "aws_vpc_security_group_ingress_rule" "web_http" {
   to_port                      = 80
 }
 
+resource "aws_vpc_security_group_ingress_rule" "web_http_floci" {
+  count             = local.use_managed_services ? 0 : 1
+  security_group_id = aws_security_group.web.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 80
+  ip_protocol       = "tcp"
+  to_port           = 80
+}
+
 resource "aws_vpc_security_group_ingress_rule" "web_ssh" {
   security_group_id = aws_security_group.web.id
   cidr_ipv4         = var.allowed_ssh_cidr

@@ -1,9 +1,8 @@
 ---
 ansible_host: 127.0.0.1
-ansible_ssh_private_key_file: "{{ lookup('env', 'HOME') }}/.ssh/taylor-shift"
 ansible_ssh_common_args: >-
   -o StrictHostKeyChecking=no
   -o UserKnownHostsFile=/dev/null
 ansible_port: >-
-  {{ lookup('ansible.builtin.pipe', 'docker.exe port floci-ec2-' ~ floci_instance ~ ' 22/tcp')
+  {{ lookup('ansible.builtin.pipe', 'docker port floci-ec2-' ~ floci_instance ~ ' 22/tcp')
      | regex_search('[0-9]+$') }}

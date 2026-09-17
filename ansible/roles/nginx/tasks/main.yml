@@ -12,7 +12,6 @@
     owner: root
     group: root
     mode: "0644"
-    validate: nginx -t -c %s
   notify: Recharger Nginx
 
 - name: Activer le site PrestaShop
@@ -27,3 +26,9 @@
     path: /etc/nginx/sites-enabled/default
     state: absent
   notify: Recharger Nginx
+
+- name: Activer Nginx
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
