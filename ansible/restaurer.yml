@@ -1,0 +1,33 @@
+---
+- name: Restaurer une archive applicative
+  hosts: webservers
+  become: true
+  vars:
+    restauration_archive: ""
+    restauration_destination: /opt/taylor-shift
+  tasks:
+    - name: Vérifier le nom de l'archive
+      ansible.builtin.assert:
+        that:
+          - restauration_archive | length > 0
+        fail_msg: "Fournir -e restauration_archive=/var/backups/taylor-shift/fichier.tar.gz"
+
+    - name: Arrêter les conteneurs avant restauration
+      community.docker.docker_compose:
+        project_src: "{{ restauration_destination }}"
+        files:
+          - compose.yml
+        state: stopped
+
+    - name: Restaurer les fichiers
+      ansible.builtin.unarchive:
+        src: "{{ restauration_archive }}"
+        dest: /opt
+        remote_src: true
+
+    - name: Redémarrer les conteneurs
+      community.docker.docker_compose:
+        project_src: "{{ restauration_destination }}"
+        files:
+          - compose.yml
+        state: present

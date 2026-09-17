@@ -1,0 +1,3 @@
+backup_source: /opt/taylor-shift
+backup_destination: /var/backups/taylor-shift
+backup_bucket: ""

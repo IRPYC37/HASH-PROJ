@@ -1,0 +1,29 @@
+---
+- name: Installer Nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+
+- name: Déployer le reverse proxy
+  ansible.builtin.template:
+    src: prestashop.conf.j2
+    dest: /etc/nginx/sites-available/prestashop.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: nginx -t -c %s
+  notify: Recharger Nginx
+
+- name: Activer le site PrestaShop
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/prestashop.conf
+    dest: /etc/nginx/sites-enabled/prestashop.conf
+    state: link
+  notify: Recharger Nginx
+
+- name: Retirer le site par défaut
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Recharger Nginx

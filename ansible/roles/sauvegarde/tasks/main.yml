@@ -1,0 +1,31 @@
+---
+- name: Créer le dossier de sauvegarde local
+  ansible.builtin.file:
+    path: "{{ backup_destination }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Déployer le script de sauvegarde
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: /usr/local/sbin/taylor-shift-backup
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Installer AWS CLI pour l'envoi S3
+  ansible.builtin.apt:
+    name: awscli
+    state: present
+    update_cache: true
+  when: backup_bucket | length > 0
+
+- name: Planifier la sauvegarde
+  ansible.builtin.cron:
+    name: Sauvegarde Taylor Shift
+    user: root
+    minute: "0"
+    hour: "2"
+    job: /usr/local/sbin/taylor-shift-backup

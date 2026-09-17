@@ -1,0 +1,40 @@
+services:
+{% if application_use_local_database %}
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: {{ application_db_name | quote }}
+      MYSQL_USER: {{ application_db_user | quote }}
+      MYSQL_PASSWORD: {{ application_db_password | quote }}
+      MYSQL_ROOT_PASSWORD: {{ application_db_root_password | default(application_db_password, true) | quote }}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+{% endif %}
+  prestashop:
+    image: {{ application_image }}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      DB_SERVER: {{ application_db_host | quote }}
+      DB_PORT: {{ application_db_port | string | quote }}
+      DB_NAME: {{ application_db_name | quote }}
+      DB_USER: {{ application_db_user | quote }}
+      DB_PASSWD: {{ application_db_password | quote }}
+      PS_INSTALL_AUTO: "1"
+      PS_DOMAIN: "{{ ansible_host }}"
+      PS_LANGUAGE: fr
+      PS_COUNTRY: fr
+{% if application_use_local_database %}
+    depends_on:
+      - db
+{% endif %}
+    volumes:
+      - prestashop_data:/var/www/html
+
+volumes:
+  prestashop_data:
+{% if application_use_local_database %}
+  mariadb_data:
+{% endif %}

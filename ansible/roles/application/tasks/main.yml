@@ -1,0 +1,79 @@
+---
+- name: Installer Docker et les prérequis
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-compose
+      - python3-docker
+    state: present
+    update_cache: true
+
+- name: Activer Docker
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Créer le dossier de l'application
+  ansible.builtin.file:
+    path: "{{ application_project_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Déployer la configuration Compose
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ application_compose_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Redémarrer PrestaShop
+
+- name: Créer le réseau Docker de l'application
+  community.docker.docker_network:
+    name: taylor-shift
+
+- name: Démarrer MariaDB locale pour Floci
+  community.docker.docker_container:
+    name: db
+    image: mariadb:10.11
+    state: started
+    restart_policy: unless-stopped
+    networks:
+      - name: taylor-shift
+    env:
+      MYSQL_DATABASE: "{{ application_db_name }}"
+      MYSQL_USER: "{{ application_db_user }}"
+      MYSQL_PASSWORD: "{{ application_db_password }}"
+      MYSQL_ROOT_PASSWORD: "{{ application_db_root_password | default(application_db_password, true) }}"
+    volumes:
+      - taylor_shift_db:/var/lib/mysql
+  when: application_use_local_database
+
+- name: Démarrer PrestaShop
+  community.docker.docker_container:
+    name: taylor-shift-prestashop
+    image: "{{ application_image }}"
+    state: started
+    recreate: true
+    restart_policy: unless-stopped
+    published_ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - name: taylor-shift
+    env:
+      DB_SERVER: "{{ application_db_host }}"
+      DB_PORT: "{{ application_db_port | string }}"
+      DB_NAME: "{{ application_db_name }}"
+      DB_USER: "{{ application_db_user }}"
+      DB_PASSWD: "{{ application_db_password }}"
+      PS_INSTALL_AUTO: "1"
+      PS_DOMAIN: "{{ ansible_host }}"
+      PS_LANGUAGE: fr
+      PS_COUNTRY: fr
+    volumes:
+      - taylor_shift_prestashop:/var/www/html
+  no_log: true

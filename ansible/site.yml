@@ -1,0 +1,12 @@
+---
+- name: Configurer les serveurs applicatifs
+  hosts: webservers
+  become: true
+  gather_facts: true
+  roles:
+    - durcissement
+    - pare_feu
+    - application
+    - nginx
+    - node_exporter
+    - sauvegarde

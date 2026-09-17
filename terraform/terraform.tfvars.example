@@ -1,0 +1,6 @@
+environnement = "dev"
+region        = "eu-west-3"
+instance_type = "t3.micro"
+
+# Ne pas mettre le mot de passe réel dans ce fichier.
+# export TF_VAR_db_password='secret-local'

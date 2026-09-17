@@ -1,0 +1,13 @@
+application_project_dir: /opt/taylor-shift
+application_compose_file: "{{ application_project_dir }}/compose.yml"
+application_image: prestashop/prestashop:latest
+application_port: 80
+application_title: Taylor Shift's Ticket Shop
+application_db_host: localhost
+application_db_name: prestashop
+application_db_user: prestashop
+application_db_password: ""
+application_db_port: 3306
+application_environment: dev
+application_use_local_database: false
+application_db_root_password: ""

@@ -1,0 +1,3 @@
+nginx_listen_port: 80
+nginx_upstream_host: 127.0.0.1
+nginx_upstream_port: 8080

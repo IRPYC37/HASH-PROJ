@@ -1,0 +1,7 @@
+---
+- name: Redémarrer PrestaShop
+  community.docker.docker_container:
+    name: taylor-shift-prestashop
+    state: started
+    restart: true
+  no_log: true
