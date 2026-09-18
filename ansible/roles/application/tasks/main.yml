@@ -22,15 +22,30 @@
     group: root
     mode: "0755"
 
-- name: Déployer la configuration Compose
-  ansible.builtin.template:
-    src: docker-compose.yml.j2
-    dest: "{{ application_compose_file }}"
-    owner: root
-    group: root
-    mode: "0600"
+- name: Installer l'AWS CLI pour lire le secret RDS
+  ansible.builtin.apt:
+    name: awscli
+    state: present
+    update_cache: true
+  when: not application_use_local_database
+
+- name: Récupérer le secret RDS depuis Secrets Manager
+  ansible.builtin.command:
+    cmd: >-
+      aws secretsmanager get-secret-value
+      --secret-id {{ application_db_secret_arn }}
+      --query SecretString --output text
+      --region {{ application_aws_region }}
+  register: application_db_secret
+  changed_when: false
   no_log: true
-  notify: Redémarrer PrestaShop
+  when: not application_use_local_database
+
+- name: Extraire le mot de passe de la base depuis le secret
+  ansible.builtin.set_fact:
+    application_db_password: "{{ (application_db_secret.stdout | from_json).password }}"
+  no_log: true
+  when: not application_use_local_database
 
 - name: Créer le réseau Docker de l'application
   community.docker.docker_network:
@@ -51,6 +66,7 @@
       MYSQL_ROOT_PASSWORD: "{{ application_db_root_password | default(application_db_password, true) }}"
     volumes:
       - taylor_shift_db:/var/lib/mysql
+  no_log: true
   when: application_use_local_database
 
 - name: Démarrer PrestaShop
@@ -79,17 +95,34 @@
       - taylor_shift_prestashop:/var/www/html
   no_log: true
 
+- name: Lire le domaine PrestaShop actuellement configuré
+  community.docker.docker_container_exec:
+    container: db
+    command: >-
+      mariadb -uroot -N -B
+      -D {{ application_db_name | quote }}
+      -e "SELECT value FROM ps_configuration WHERE name='PS_SHOP_DOMAIN' LIMIT 1"
+    env:
+      MYSQL_PWD: "{{ application_db_root_password | default(application_db_password, true) }}"
+  register: application_current_domain
+  retries: 10
+  delay: 3
+  until: application_current_domain.rc == 0
+  changed_when: false
+  no_log: true
+  when: application_use_local_database
+
 - name: Synchroniser l'URL publique PrestaShop
   community.docker.docker_container_exec:
     container: db
     command: >-
-      mariadb -uroot -p{{ application_db_root_password | default(application_db_password, true) | quote }}
+      mariadb -uroot
       -D {{ application_db_name | quote }}
       -e "UPDATE ps_shop_url SET domain='{{ application_public_url }}', domain_ssl='{{ application_public_url }}' WHERE id_shop_url=1; UPDATE ps_configuration SET value='{{ application_public_url }}' WHERE name IN ('PS_SHOP_DOMAIN', 'PS_SHOP_DOMAIN_SSL')"
+    env:
+      MYSQL_PWD: "{{ application_db_root_password | default(application_db_password, true) }}"
   register: prestashop_url_sync
-  retries: 10
-  delay: 3
-  until: prestashop_url_sync.rc == 0
-  changed_when: false
+  changed_when: application_current_domain.stdout | default('') != application_public_url
+  notify: Vider le cache PrestaShop
   no_log: true
   when: application_use_local_database

@@ -6,7 +6,7 @@ trap 'rm -rf "$workdir"' EXIT
 {% if application_use_local_database | default(false) %}
 docker exec db sh -c 'mariadb-dump --single-transaction -uroot -p"$MYSQL_ROOT_PASSWORD" "{{ application_db_name }}"' > "$workdir/database.sql"
 {% else %}
-secret_json=$(aws secretsmanager get-secret-value --secret-id "{{ application_db_secret_arn }}" --query SecretString --output text --region "{{ region | default('us-east-1') }}")
+secret_json=$(aws secretsmanager get-secret-value --secret-id "{{ application_db_secret_arn }}" --query SecretString --output text --region "{{ application_aws_region | default('us-east-1') }}")
 db_host=$(printf '%s' "$secret_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["host"])')
 db_name=$(printf '%s' "$secret_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["database"])')
 db_user=$(printf '%s' "$secret_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["username"])')

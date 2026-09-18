@@ -13,9 +13,9 @@
     - name: Collecter les facts après le bootstrap
       ansible.builtin.setup:
   roles:
+    - geerlingguy.git
     - durcissement
     - pare_feu
     - application
     - nginx
-    - node_exporter
     - sauvegarde

@@ -104,8 +104,27 @@ variable "db_password" {
   default     = null
 }
 
+variable "application_public_port" {
+  description = <<-EOT
+    Port local utilisé pour joindre l'application en mode "floci" (via le
+    tunnel SSH de scripts/floci-tunnel.sh, Floci ne publiant que le port SSH
+    vers l'hôte). Par défaut 8080 ; à changer si ce port est déjà utilisé par
+    un autre service sur la machine de développement.
+  EOT
+  type        = number
+  default     = 8080
+}
+
 variable "allowed_ssh_cidr" {
-  description = "CIDR autorisé à joindre SSH. À réduire à l'IP publique de l'opérateur."
+  description = <<-EOT
+    CIDR autorisé à joindre le port SSH des EC2 (security group "web").
+    Par défaut 0.0.0.0/0 : acceptable en mode "floci" (bac à sable local,
+    aucune exposition réelle sur Internet), mais À RESTREINDRE
+    IMPÉRATIVEMENT en mode "aws" à l'IP publique de l'opérateur, par
+    exemple "203.0.113.10/32" — via terraform.tfvars ou
+    -var='allowed_ssh_cidr=...'. Un `terraform plan`/`apply` en mode "aws"
+    avec la valeur par défaut affiche un avertissement (voir checks.tf).
+  EOT
   type        = string
   default     = "0.0.0.0/0"
 }

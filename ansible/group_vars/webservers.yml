@@ -4,5 +4,6 @@ ansible_ssh_common_args: >-
   -o StrictHostKeyChecking=no
   -o UserKnownHostsFile=/dev/null
 ansible_port: >-
-  {{ lookup('ansible.builtin.pipe', 'docker port floci-ec2-' ~ floci_instance ~ ' 22/tcp')
-     | regex_search('[0-9]+$') }}
+  {{ (lookup('ansible.builtin.pipe', 'docker port floci-ec2-' ~ floci_instance ~ ' 22/tcp')
+     | regex_search('[0-9]+$'))
+     if application_use_local_database | default(false) else 22 }}

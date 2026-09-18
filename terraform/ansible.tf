@@ -13,7 +13,6 @@ resource "ansible_host" "web" {
     application_db_host          = local.use_managed_services ? aws_db_instance.main[0].address : "db"
     application_db_name          = var.db_name
     application_db_user          = var.db_username
-    application_db_password      = coalesce(var.db_password, random_password.db.result)
     application_db_secret_arn    = aws_secretsmanager_secret.database.arn
   }
 }
@@ -25,7 +24,9 @@ resource "ansible_group" "webservers" {
     application_environnement      = var.environnement
     application_titre              = "Taylor Shift's Ticket Shop"
     application_port               = 80
+    application_aws_region         = var.region
     backup_bucket                  = module.backup_bucket.id
     application_use_local_database = !local.use_managed_services
+    application_public_url         = local.use_managed_services ? aws_lb.application[0].dns_name : "localhost:${var.application_public_port}"
   }
 }

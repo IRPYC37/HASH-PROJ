@@ -1,6 +1,6 @@
 output "alb_endpoint" {
-  description = "Endpoint HTTP public de l'application."
-  value       = local.use_managed_services ? "http://${aws_lb.application[0].dns_name}" : "http://localhost:8080"
+  description = "Endpoint HTTP public de l'application. En mode floci, Floci ne publie pas ce port automatiquement : lancer scripts/floci-tunnel.sh avant d'y accéder (voir README)."
+  value       = local.use_managed_services ? "http://${aws_lb.application[0].dns_name}" : "http://localhost:${var.application_public_port}"
 }
 
 output "alb_dns_name" {

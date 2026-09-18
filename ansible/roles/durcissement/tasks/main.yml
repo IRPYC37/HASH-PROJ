@@ -22,3 +22,13 @@
     line: AllowTcpForwarding local
     validate: /usr/sbin/sshd -t -f %s
   notify: Recharger SSH
+
+- name: Durcir les réglages réseau du noyau
+  ansible.posix.sysctl:
+    name: "{{ item.nom }}"
+    value: "{{ item.valeur }}"
+    sysctl_file: /etc/sysctl.d/90-durcissement.conf
+    reload: true
+  loop: "{{ durcissement_sysctl }}"
+  loop_control:
+    label: "{{ item.nom }} = {{ item.valeur }}"

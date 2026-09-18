@@ -1,7 +1,5 @@
 ---
-- name: Redémarrer PrestaShop
-  community.docker.docker_container:
-    name: taylor-shift-prestashop
-    state: started
-    restart: true
-  no_log: true
+- name: Vider le cache PrestaShop
+  community.docker.docker_container_exec:
+    container: taylor-shift-prestashop
+    command: sh -c "rm -rf /var/www/html/var/cache/prod/* /var/www/html/var/cache/dev/*"

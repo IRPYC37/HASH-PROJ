@@ -1,1 +1,13 @@
 durcissement_ssh_config: /etc/ssh/sshd_config
+
+durcissement_sysctl:
+  - nom: net.ipv4.conf.all.accept_redirects
+    valeur: "0"
+  - nom: net.ipv4.conf.all.send_redirects
+    valeur: "0"
+  - nom: net.ipv4.conf.all.accept_source_route
+    valeur: "0"
+  - nom: net.ipv4.tcp_syncookies
+    valeur: "1"
+  - nom: net.ipv4.icmp_echo_ignore_broadcasts
+    valeur: "1"
