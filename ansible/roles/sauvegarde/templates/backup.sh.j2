@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 archive="{{ backup_destination }}/taylor-shift-$(date +%F).tar.gz"
-tar -czf "$archive" -C "{{ backup_source | dirname }}" "{{ backup_source | basename }}"
+workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
+{% if application_use_local_database | default(false) %}
+docker exec db sh -c 'mariadb-dump --single-transaction -uroot -p"$MYSQL_ROOT_PASSWORD" "{{ application_db_name }}"' > "$workdir/database.sql"
+{% else %}
+secret_json=$(aws secretsmanager get-secret-value --secret-id "{{ application_db_secret_arn }}" --query SecretString --output text --region "{{ region | default('us-east-1') }}")
+db_host=$(printf '%s' "$secret_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["host"])')
+db_name=$(printf '%s' "$secret_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["database"])')
+db_user=$(printf '%s' "$secret_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["username"])')
+export MYSQL_PWD=$(printf '%s' "$secret_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["password"])')
+mariadb-dump --single-transaction -h "$db_host" -u "$db_user" "$db_name" > "$workdir/database.sql"
+unset MYSQL_PWD
+{% endif %}
+tar -czf "$archive" -C "$workdir" database.sql
 find "{{ backup_destination }}" -type f -name '*.tar.gz' -mtime +7 -delete
-{% if backup_bucket | length > 0 %}
+{% if backup_bucket | length > 0 and not (application_use_local_database | default(false)) %}
 aws s3 cp "$archive" "s3://{{ backup_bucket }}/$(hostname)/"
 {% endif %}

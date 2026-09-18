@@ -4,7 +4,7 @@
   become: true
   vars:
     restauration_archive: ""
-    restauration_destination: /opt/taylor-shift
+    restauration_temporaire: /tmp/taylor-shift-restore
   tasks:
     - name: Vérifier le nom de l'archive
       ansible.builtin.assert:
@@ -12,22 +12,40 @@
           - restauration_archive | length > 0
         fail_msg: "Fournir -e restauration_archive=/var/backups/taylor-shift/fichier.tar.gz"
 
-    - name: Arrêter les conteneurs avant restauration
-      community.docker.docker_compose:
-        project_src: "{{ restauration_destination }}"
-        files:
-          - compose.yml
+    - name: Arrêter PrestaShop avant restauration
+      community.docker.docker_container:
+        name: taylor-shift-prestashop
+        timeout: 300
         state: stopped
 
-    - name: Restaurer les fichiers
+    - name: Créer le dossier temporaire de restauration
+      ansible.builtin.file:
+        path: "{{ restauration_temporaire }}"
+        state: directory
+        mode: "0700"
+
+    - name: Extraire l'archive SQL
       ansible.builtin.unarchive:
         src: "{{ restauration_archive }}"
-        dest: /opt
+        dest: "{{ restauration_temporaire }}"
         remote_src: true
 
-    - name: Redémarrer les conteneurs
-      community.docker.docker_compose:
-        project_src: "{{ restauration_destination }}"
-        files:
-          - compose.yml
-        state: present
+    - name: Restaurer MariaDB locale
+      ansible.builtin.shell: >-
+        docker exec -i db sh -c
+        'mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" "{{ application_db_name }}"'
+        < "{{ restauration_temporaire }}/database.sql"
+      no_log: true
+      when: application_use_local_database | default(false)
+
+    - name: Redémarrer PrestaShop
+      community.docker.docker_container:
+        name: taylor-shift-prestashop
+        timeout: 300
+        state: started
+        restart_policy: unless-stopped
+
+    - name: Supprimer les fichiers temporaires
+      ansible.builtin.file:
+        path: "{{ restauration_temporaire }}"
+        state: absent

@@ -53,25 +53,12 @@
       - taylor_shift_db:/var/lib/mysql
   when: application_use_local_database
 
-- name: Synchroniser l'URL publique PrestaShop
-  community.docker.docker_container_exec:
-    container: db
-    command: >-
-      mariadb -uroot -p{{ application_db_root_password | default(application_db_password, true) | quote }}
-      -D {{ application_db_name | quote }}
-      -e "UPDATE ps_shop_url SET domain='{{ application_public_url }}', domain_ssl='{{ application_public_url }}' WHERE id_shop_url=1"
-  register: prestashop_url_sync
-  retries: 10
-  delay: 3
-  until: prestashop_url_sync.rc == 0
-  changed_when: false
-  no_log: true
-  when: application_use_local_database
-
 - name: Démarrer PrestaShop
   community.docker.docker_container:
     name: taylor-shift-prestashop
     image: "{{ application_image }}"
+    pull: false
+    timeout: 300
     state: started
     restart_policy: unless-stopped
     published_ports:
@@ -91,3 +78,18 @@
     volumes:
       - taylor_shift_prestashop:/var/www/html
   no_log: true
+
+- name: Synchroniser l'URL publique PrestaShop
+  community.docker.docker_container_exec:
+    container: db
+    command: >-
+      mariadb -uroot -p{{ application_db_root_password | default(application_db_password, true) | quote }}
+      -D {{ application_db_name | quote }}
+      -e "UPDATE ps_shop_url SET domain='{{ application_public_url }}', domain_ssl='{{ application_public_url }}' WHERE id_shop_url=1; UPDATE ps_configuration SET value='{{ application_public_url }}' WHERE name IN ('PS_SHOP_DOMAIN', 'PS_SHOP_DOMAIN_SSL')"
+  register: prestashop_url_sync
+  retries: 10
+  delay: 3
+  until: prestashop_url_sync.rc == 0
+  changed_when: false
+  no_log: true
+  when: application_use_local_database
