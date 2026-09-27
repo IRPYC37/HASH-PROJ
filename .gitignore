@@ -1,7 +1,12 @@
-.keys/*
+.keys/
 .vault-pass
+*.retry
+
+ansible/collections/
+ansible/roles/geerlingguy.*
+
 .terraform/
 *.tfstate
 *.tfstate.*
-collections/
-roles/geerlingguy.git/
+*.tfplan
+*.tfvars

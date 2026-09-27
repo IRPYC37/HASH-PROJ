@@ -1,0 +1,25 @@
+---
+- name: Configurer les serveurs applicatifs
+  hosts: webservers
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Installer Python sur l'image Floci
+      ansible.builtin.raw: >-
+        test -x /usr/bin/python3 ||
+        (apt-get update && apt-get install -y python3)
+      changed_when: false
+
+    - name: Collecter les facts après le bootstrap
+      ansible.builtin.setup:
+  roles:
+    - geerlingguy.git
+    - durcissement
+    - pare_feu
+    - nginx
+    - application
+    - sauvegarde
+  post_tasks:
+    - name: Afficher l'URL de l'application
+      ansible.builtin.debug:
+        msg: "http://{{ application_public_url }}"

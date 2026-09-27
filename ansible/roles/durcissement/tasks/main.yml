@@ -1,0 +1,34 @@
+---
+- name: Désactiver l'authentification SSH par mot de passe
+  ansible.builtin.lineinfile:
+    path: "{{ durcissement_ssh_config }}"
+    regexp: '^#?PasswordAuthentication '
+    line: PasswordAuthentication no
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Recharger SSH
+
+- name: Interdire root par mot de passe
+  ansible.builtin.lineinfile:
+    path: "{{ durcissement_ssh_config }}"
+    regexp: '^#?PermitRootLogin '
+    line: PermitRootLogin prohibit-password
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Recharger SSH
+
+- name: Interdire le forwarding SSH
+  ansible.builtin.lineinfile:
+    path: "{{ durcissement_ssh_config }}"
+    regexp: '^#?AllowTcpForwarding '
+    line: AllowTcpForwarding no
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Recharger SSH
+
+- name: Durcir les réglages réseau du noyau
+  ansible.posix.sysctl:
+    name: "{{ item.nom }}"
+    value: "{{ item.valeur }}"
+    sysctl_file: /etc/sysctl.d/90-durcissement.conf
+    reload: true
+  loop: "{{ durcissement_sysctl }}"
+  loop_control:
+    label: "{{ item.nom }} = {{ item.valeur }}"

@@ -1,0 +1,18 @@
+application_image: prestashop/prestashop:latest
+application_public_url: localhost
+application_db_host: localhost
+application_db_name: prestashop
+application_db_user: prestashop
+application_db_password: "{{ vault_application_db_password | default('') }}"
+application_db_port: 3306
+application_use_local_database: false
+application_db_root_password: ""
+application_db_secret_arn: ""
+application_aws_region: us-east-1
+application_aws_cli: /snap/bin/aws
+application_floci_http_port: 30080
+application_relais_nom: "taylor-shift-http-{{ inventory_hostname }}"
+application_relais_image: alpine/socat:latest
+application_relais_commande:
+  - "TCP-LISTEN:80,fork,reuseaddr"
+  - "TCP:{{ ansible_facts['default_ipv4']['address'] }}:80"

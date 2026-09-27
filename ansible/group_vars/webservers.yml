@@ -1,0 +1,12 @@
+---
+ansible_host: 127.0.0.1
+ansible_ssh_common_args: >-
+  -o StrictHostKeyChecking=no
+  -o UserKnownHostsFile=/dev/null
+ansible_port: >-
+  {{ (lookup('ansible.builtin.pipe', 'docker port floci-ec2-' ~ floci_instance ~ ' 22/tcp')
+     | regex_search('[0-9]+$'))
+     if application_use_local_database | default(false) else 22 }}
+application_public_url: >-
+  {{ ('localhost:' ~ application_floci_http_port)
+     if application_use_local_database | default(false) else application_alb_dns }}

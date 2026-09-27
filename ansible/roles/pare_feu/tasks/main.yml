@@ -1,0 +1,24 @@
+---
+- name: Installer UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+    update_cache: true
+
+- name: Autoriser SSH
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: Autoriser HTTP
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: Activer le pare-feu local
+  community.general.ufw:
+    state: enabled
+    policy: deny
+  when: pare_feu_active
