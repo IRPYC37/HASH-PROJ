@@ -1,10 +1,11 @@
 ---
 - name: Restaurer une archive applicative
-  hosts: webservers
+  hosts: "{{ serveur | default('aucun-serveur-choisi') }}"
   become: true
   vars:
     restauration_archive: ""
     restauration_temporaire: /tmp/taylor-shift-restore
+    restauration_aws_cli: /snap/bin/aws
   tasks:
     - name: Vérifier le nom de l'archive
       ansible.builtin.assert:
@@ -13,10 +14,9 @@
         fail_msg: "Fournir -e restauration_archive=/var/backups/taylor-shift/fichier.tar.gz"
 
     - name: Arrêter PrestaShop avant restauration
-      community.docker.docker_container:
-        name: taylor-shift-prestashop
-        timeout: 300
-        state: stopped
+      ansible.builtin.command:
+        cmd: docker stop taylor-shift-prestashop
+      changed_when: true
 
     - name: Créer le dossier temporaire de restauration
       ansible.builtin.file:
@@ -37,13 +37,37 @@
         < "{{ restauration_temporaire }}/database.sql"
       no_log: true
       when: application_use_local_database | default(false)
+      changed_when: true
+
+    - name: Lire le secret RDS
+      ansible.builtin.command:
+        cmd: >-
+          {{ restauration_aws_cli }} secretsmanager get-secret-value
+          --secret-id {{ application_db_secret_arn }}
+          --query SecretString --output text
+          --region {{ application_aws_region }}
+      register: restauration_secret
+      changed_when: false
+      no_log: true
+      when: not (application_use_local_database | default(false))
+
+    - name: Restaurer RDS
+      ansible.builtin.shell: >-
+        mariadb -h "{{ (restauration_secret.stdout | from_json).host }}"
+        -P "{{ (restauration_secret.stdout | from_json).port }}"
+        -u "{{ (restauration_secret.stdout | from_json).username }}"
+        "{{ (restauration_secret.stdout | from_json).database }}"
+        < "{{ restauration_temporaire }}/database.sql"
+      environment:
+        MYSQL_PWD: "{{ (restauration_secret.stdout | from_json).password }}"
+      no_log: true
+      when: not (application_use_local_database | default(false))
+      changed_when: true
 
     - name: Redémarrer PrestaShop
-      community.docker.docker_container:
-        name: taylor-shift-prestashop
-        timeout: 300
-        state: started
-        restart_policy: unless-stopped
+      ansible.builtin.command:
+        cmd: docker start taylor-shift-prestashop
+      changed_when: true
 
     - name: Supprimer les fichiers temporaires
       ansible.builtin.file:

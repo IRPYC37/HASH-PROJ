@@ -119,3 +119,9 @@ variable "floci_http_port_base" {
     error_message = "floci_http_port_base doit être compris entre 1024 et 65000."
   }
 }
+
+variable "alert_email" {
+  description = "Adresse e-mail abonnée aux alarmes CloudWatch (mode aws). null : pas d'abonnement."
+  type        = string
+  default     = null
+}

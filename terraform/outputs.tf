@@ -8,19 +8,14 @@ output "floci_urls" {
   value       = local.use_managed_services ? null : { for name, port in local.floci_http_ports : name => "http://localhost:${port}" }
 }
 
-output "alb_dns_name" {
-  description = "Nom DNS de l'ALB."
-  value       = local.use_managed_services ? aws_lb.application[0].dns_name : null
-}
-
 output "rds_endpoint" {
   description = "Endpoint RDS sans le mot de passe."
   value       = local.use_managed_services ? aws_db_instance.main[0].address : null
 }
 
 output "web_instances" {
-  description = "Adresses publiques des EC2 gérées par Ansible."
-  value       = { for name, instance in aws_instance.web : name => instance.public_ip }
+  description = "Identifiant et adresse privée des EC2 configurées par Ansible."
+  value       = { for name, instance in aws_instance.web : name => { id = instance.id, private_ip = instance.private_ip } }
 }
 
 output "database_secret_arn" {

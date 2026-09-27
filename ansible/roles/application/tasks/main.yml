@@ -53,7 +53,7 @@
       MYSQL_DATABASE: "{{ application_db_name }}"
       MYSQL_USER: "{{ application_db_user }}"
       MYSQL_PASSWORD: "{{ application_db_password }}"
-      MYSQL_ROOT_PASSWORD: "{{ application_db_root_password | default(application_db_password, true) }}"
+      MYSQL_ROOT_PASSWORD: "{{ application_db_root_password }}"
     volumes:
       - taylor_shift_db:/var/lib/mysql
   no_log: true
@@ -131,11 +131,13 @@
       -D {{ application_db_name | quote }}
       -e "SELECT value FROM ps_configuration WHERE name='PS_SHOP_DOMAIN' LIMIT 1"
     env:
-      MYSQL_PWD: "{{ application_db_root_password | default(application_db_password, true) }}"
+      MYSQL_PWD: "{{ application_db_root_password }}"
   register: application_current_domain
   retries: 60
   delay: 5
-  until: application_current_domain.rc == 0
+  until: >-
+    application_current_domain.rc == 0
+    and application_current_domain.stdout | length > 0
   changed_when: false
   no_log: true
   when: application_use_local_database
@@ -146,10 +148,13 @@
     command: >-
       mariadb -uroot
       -D {{ application_db_name | quote }}
-      -e "UPDATE ps_shop_url SET domain='{{ application_public_url }}', domain_ssl='{{ application_public_url }}' WHERE id_shop_url=1; UPDATE ps_configuration SET value='{{ application_public_url }}' WHERE name IN ('PS_SHOP_DOMAIN', 'PS_SHOP_DOMAIN_SSL')"
+      -e "UPDATE ps_shop_url
+      SET domain='{{ application_public_url }}', domain_ssl='{{ application_public_url }}'
+      WHERE id_shop_url=1;
+      UPDATE ps_configuration SET value='{{ application_public_url }}'
+      WHERE name IN ('PS_SHOP_DOMAIN', 'PS_SHOP_DOMAIN_SSL')"
     env:
-      MYSQL_PWD: "{{ application_db_root_password | default(application_db_password, true) }}"
-  register: prestashop_url_sync
+      MYSQL_PWD: "{{ application_db_root_password }}"
   changed_when: application_current_domain.stdout | default('') != application_public_url
   notify: Vider le cache PrestaShop
   no_log: true

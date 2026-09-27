@@ -2,4 +2,4 @@
 - name: Vider le cache PrestaShop
   community.docker.docker_container_exec:
     container: taylor-shift-prestashop
-    command: sh -c "rm -rf /var/www/html/var/cache/prod/* /var/www/html/var/cache/dev/*"
+    command: sh -c "rm -rf /var/www/html/var/cache/prod/* /var/www/html/var/cache/dev/* || true"

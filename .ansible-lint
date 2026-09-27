@@ -3,3 +3,4 @@ exclude_paths:
   - ansible/roles/geerlingguy.git/
   - ansible/collections/
   - terraform/
+  - ansible/group_vars/all/vault.yml

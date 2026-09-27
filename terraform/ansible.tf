@@ -1,5 +1,5 @@
 locals {
-  floci_http_ports = { for index, name in sort(keys(aws_instance.web)) : name => var.floci_http_port_base + index }
+  floci_http_ports = { for index, name in sort(keys(aws_instance.web)) : name => var.floci_http_port_base + local.current_environment.floci_port_offset + index }
 }
 
 resource "ansible_host" "web" {
@@ -25,6 +25,7 @@ resource "ansible_group" "webservers" {
   name = "webservers"
 
   variables = {
+    application_environnement      = var.environnement
     application_aws_region         = var.region
     sauvegarde_bucket              = module.backup_bucket.id
     application_use_local_database = !local.use_managed_services

@@ -1,8 +1,9 @@
 # Taylor Shift's Ticket Shop
 
+
 Déploiement de la boutique PrestaShop (image `prestashop/prestashop` de Docker
-Hub) : Terraform crée l'infrastructure, Ansible configure les serveurs et
-déploie l'application. L'environnement cible est Floci, comme dans les labs.
+Hub). Terraform crée l'infrastructure, Ansible configure les serveurs et
+déploie l'application. Tout tourne sur Floci, comme dans les labs.
 
 ## 1. Architecture
 
@@ -29,12 +30,11 @@ Rôles Ansible : `geerlingguy.git` (Galaxy), `durcissement`, `pare_feu`,
 
 ## 2. Prérequis
 
-Terraform ≥ 1.11, ansible-core 2.20.x (`cloud.terraform` 4.0.0 ne marche pas
-en 2.21), AWS CLI v2, Docker, Floci.
+Terraform >= 1.11, ansible-core 2.20.x (la collection `cloud.terraform` 4.0.0
+ne fonctionne pas avec la 2.21), AWS CLI v2, Docker et Floci.
 
-Sous Windows, travailler dans WSL et cloner le dépôt dans le dossier personnel
-Linux (`~/`), pas sous `/mnt/c` : sinon Ansible ignore `ansible.cfg` (dossier
-« world writable ») et SSH refuse la clé privée (droits `777`).
+Sous Windows, cloner le dépôt dans le dossier Linux de WSL (`~/`) et pas dans
+`/mnt/c`. Sinon Ansible ignore `ansible.cfg` et SSH refuse la clé privée.
 
 ```bash
 floci start
@@ -43,13 +43,14 @@ eval $(floci env)
 
 ## 3. Avant les commandes d'évaluation
 
-Clé SSH du projet (ignorée par git) :
+Créer la clé SSH du projet (elle n'est pas versionnée) :
 
 ```bash
 mkdir -p .keys && ssh-keygen -t ed25519 -f .keys/taylor-shift -N ""
 ```
 
-Bucket du state Terraform (le backend S3 ne peut pas le créer lui-même) :
+Créer le bucket du state Terraform, que le backend S3 ne peut pas créer
+lui-même :
 
 ```bash
 aws --endpoint-url http://localhost.floci.io:4566 s3api create-bucket \
@@ -58,12 +59,13 @@ aws --endpoint-url http://localhost.floci.io:4566 s3api put-bucket-versioning \
   --bucket taylor-shift-terraform-state --versioning-configuration Status=Enabled
 ```
 
-Le state du workspace `default` (dev) est `terraform.tfstate` à la racine du
-bucket ; les autres workspaces sont stockés sous
-`taylor-shift/<workspace>/terraform.tfstate`. Verrou natif par `use_lockfile`.
+Pour dev (workspace `default`), le state est `terraform.tfstate` à la racine du
+bucket. Les autres environnements sont dans
+`taylor-shift/<workspace>/terraform.tfstate`. Le verrou est géré par
+`use_lockfile`.
 
-Le mot de passe Vault est transmis séparément par l'équipe et saisi par
-`--ask-vault-pass` : aucun fichier `.vault-pass` n'est nécessaire.
+Le mot de passe Vault est donné à part. Il est demandé par `--ask-vault-pass`,
+pas besoin de fichier `.vault-pass`. Le fichier
 `ansible/group_vars/all/vault.yml` est déjà chiffré.
 
 ## 4. Déploiement
@@ -81,19 +83,18 @@ Le second passage doit finir avec `changed=0`.
 
 ### Accès à l'application
 
-**http://localhost:30080** (web1 ; web2 = 30081…). L'URL est donnée par
-`terraform -chdir=terraform output floci_urls` et affichée par la dernière
-tâche du playbook.
+En dev : http://localhost:30080. L'URL est aussi donnée par
+`terraform -chdir=terraform output floci_urls` et affichée à la fin du playbook.
 
-Floci ne publie sur le poste que le port SSH des instances (en 2.1.0, le relais
-du port 80 décrit dans les labs n'est pas créé). Le rôle `application` démarre
-donc sur le poste un conteneur relais `taylor-shift-http-web1` (`alpine/socat`)
-vers Nginx, sur le port fixé par Terraform (`floci_http_port_base`, 30080 par
-défaut). Ce port est aussi le domaine enregistré dans PrestaShop.
+Floci ne publie vers le poste que le port SSH des instances. Le rôle
+`application` lance donc sur le poste un petit conteneur relais (`socat`) qui
+renvoie vers Nginx. Ports utilisés : dev 30080, staging 30090, prod 30100
+(+1 par instance supplémentaire). Ce port sert aussi de domaine à PrestaShop.
 
 ### Vérifier la base
 
-La page d'accueil affiche le catalogue, lu dans MariaDB. Depuis le poste :
+La page d'accueil affiche le catalogue, qui vient de MariaDB. Pour vérifier
+directement :
 
 ```bash
 ansible webservers -i ansible/inventory.yml -b --ask-vault-pass -m ansible.builtin.shell \
@@ -102,13 +103,20 @@ ansible webservers -i ansible/inventory.yml -b --ask-vault-pass -m ansible.built
 
 ## 5. Environnements
 
-Un workspace par environnement ; `var.environnement` doit avoir la même valeur
-(vérifié par `terraform/checks.tf`).
+Chaque environnement a son workspace et son fichier de réglages
+(`terraform/envs/<env>.tfvars`), à utiliser ensemble. dev utilise le workspace
+`default`, celui des commandes d'évaluation. `terraform/checks.tf` vérifie que
+le workspace correspond à l'environnement.
 
 ```bash
-terraform -chdir=terraform workspace new staging
-terraform -chdir=terraform apply -var environnement=staging
+terraform -chdir=terraform workspace select -or-create staging
+terraform -chdir=terraform apply -var-file=envs/staging.tfvars
+terraform -chdir=terraform workspace select default
 ```
+
+Les tailles sont définies dans `terraform/environments.tf`. `envs/prod.tfvars`
+passe en mode aws : il faut y mettre l'IP de l'opérateur dans
+`allowed_ssh_cidr`.
 
 | Env | EC2 | Type | ASG min/max | RDS | Rétention |
 |---|---:|---|---:|---|---:|
@@ -116,60 +124,74 @@ terraform -chdir=terraform apply -var environnement=staging
 | staging | 2 | t3.small | 1/3 | db.t3.micro | 3 j |
 | prod | 2 | t3.medium | 2/4 | db.t3.small | 7 j |
 
+En mode floci, chaque environnement a ses propres ports (voir partie 4), donc
+dev et staging peuvent tourner en même temps.
+
 ## 6. Trafic, panne et limites
 
-- **Mode aws** : l'ALB interroge `/` toutes les 30 s ; après 3 échecs, une
-  instance est retirée du routage et le trafic va aux autres. L'ASG (health
-  check ELB) la remplace, et une alarme CloudWatch signale l'hôte en échec.
-  En cas de pic, une politique de suivi de cible (`aws_autoscaling_policy`,
-  CPU moyen visé `asg_cpu_target` = 60 %) ajoute des instances jusqu'à
-  `asg_max_size`, puis les retire quand la charge retombe (jamais sous
-  `asg_min_size`).
-- **Mode floci** : une seule EC2. Les conteneurs redémarrent seuls
-  (`unless-stopped`) ; si l'instance disparaît, le site est coupé jusqu'au
-  prochain `terraform apply` + playbook.
+- Mode aws : l'ALB teste `/` toutes les 30 s. Après 3 échecs, l'instance est
+  retirée et le trafic part vers les autres. L'ASG la remplace (health check
+  ELB) et une alarme CloudWatch se déclenche. Quand la charge monte, une
+  politique de suivi de cible (`aws_autoscaling_policy`, 60 % de CPU moyen
+  réglable avec `asg_cpu_target`) ajoute des instances jusqu'à `asg_max_size`,
+  puis les retire quand la charge baisse, sans descendre sous `asg_min_size`.
+- Mode floci : une seule EC2. Les conteneurs redémarrent tout seuls
+  (`unless-stopped`). Si l'instance disparaît, le site est coupé jusqu'au
+  prochain `terraform apply` suivi du playbook.
 
 Limites :
 
-- Floci ne sert que le mode floci : ALB, ASG, RDS et CloudWatch n'y sont pas
-  créés. Le mode aws n'a pas été déployé : `provider.tf` et `backend.tf`
-  pointent vers Floci et doivent être adaptés pour un vrai compte.
-- Floci 2.1.0 rattache l'instance au security group par défaut et renvoie les
-  ID de SG référencés sous la forme `000000000000/sg-…` : un second `apply` sur
-  une infrastructure existante propose donc des modifications que Floci refuse
-  (`ModifyNetworkInterfaceAttribute`). Pour rejouer : `destroy` puis `apply`.
-- Les instances de l'ASG sont préparées par `user_data`, pas par Ansible.
-- Le scaling réagit au CPU en quelques minutes : un pic brutal à l'ouverture
-  des ventes doit être anticipé en montant `asg_min_size` avant la vente.
-- Les fichiers PrestaShop (images produits) restent locaux à chaque instance
-  (pas d'EFS), et RDS est mono-AZ.
+- ALB, ASG, RDS et CloudWatch ne sont pas créés sur Floci, donc le mode aws n'a
+  pas été déployé. Pour un vrai compte, il faut adapter `provider.tf` et
+  `backend.tf`, qui pointent vers Floci.
+- Sur Floci, relancer `apply` sur une infrastructure existante échoue. Il faut
+  faire `destroy` puis `apply`.
+- Les instances créées par l'ASG sont préparées par `user_data`, pas par
+  Ansible.
+- Le scaling met quelques minutes à réagir. Pour l'ouverture des ventes, mieux
+  vaut monter `asg_min_size` à l'avance.
+- Les images produits restent sur chaque instance (pas d'EFS) et RDS est sur
+  une seule zone de disponibilité.
 - Pas de CDN ni de cache devant l'ALB.
 
 ## 7. Sécurité
 
-- Security groups séparés : ALB ouvert en 80, EC2 joignables depuis l'ALB
-  seulement, RDS depuis les EC2 seulement.
-- SSH : `0.0.0.0/0` n'est accepté qu'en mode floci (bac à sable local). En mode
-  aws, Terraform refuse l'apply tant que `allowed_ssh_cidr` n'est pas restreint
+- Un security group par couche : l'ALB accepte le port 80, les EC2 n'acceptent
+  que l'ALB, RDS n'accepte que les EC2. En floci il n'y a pas d'ALB, donc le
+  port 80 des EC2 est ouvert.
+- SSH : `0.0.0.0/0` est accepté seulement en mode floci. En mode aws, Terraform
+  refuse l'apply tant que `allowed_ssh_cidr` n'est pas restreint
   (`-var 'allowed_ssh_cidr=<IP>/32'`).
-- Mot de passe de la base : Ansible Vault en mode floci ; en mode aws, secret
-  Secrets Manager (créé seulement dans ce mode) lu par les EC2 via leur rôle IAM.
-  Aucun output ne contient de secret.
-- Clé privée transmise à Ansible par son chemin, jamais par son contenu.
-- Durcissement SSH (pas de mot de passe), sysctl, pare-feu UFW (22 et 80).
+- Mots de passe de la base : dans Ansible Vault en mode floci. En mode aws, ils
+  sont dans Secrets Manager (créé seulement dans ce mode) et les EC2 les lisent
+  grâce à leur rôle IAM. Aucun output ne contient de secret.
+- La clé privée est passée à Ansible par son chemin, jamais par son contenu.
+- Durcissement SSH (pas de mot de passe), sysctl et pare-feu UFW (ports 22 et
+  80).
 
 ## 8. Exploitation
 
-Sauvegarde quotidienne à 2 h (dump SQL dans `/var/backups/taylor-shift`,
-envoi S3 en mode aws). Restauration :
+Une sauvegarde tourne chaque nuit à 2 h : dump SQL dans
+`/var/backups/taylor-shift`, envoyé sur S3 en mode aws. Pour restaurer :
 
 ```bash
 ansible-playbook -i ansible/inventory.yml ansible/restaurer.yml --ask-vault-pass \
+  -e serveur=web1 \
   -e restauration_archive=/var/backups/taylor-shift/taylor-shift-AAAA-MM-JJ.tar.gz
 ```
 
-Destruction :
+Sans `-e serveur=...`, le playbook ne touche aucune machine.
+
+En mode aws, les alarmes CloudWatch (instance en échec, CPU RDS) sont envoyées
+sur un topic SNS. `-var alert_email=<adresse>` permet de s'y abonner par
+e-mail.
+
+Pour détruire dev (le relais local n'est pas géré par Terraform) :
 
 ```bash
-terraform -chdir=terraform destroy -var environnement=<env>
+terraform -chdir=terraform destroy
+docker rm -f taylor-shift-dev-http-web1
 ```
+
+Pour staging ou prod, sélectionner le workspace et ajouter
+`-var-file=envs/<env>.tfvars`, comme dans la partie 5.

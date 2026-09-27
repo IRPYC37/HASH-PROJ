@@ -10,6 +10,7 @@ locals {
       asg_max_size         = 2
       rds_instance_class   = "db.t3.micro"
       backup_retention     = 1
+      floci_port_offset    = 0
     }
     staging = {
       instance_type        = "t3.small"
@@ -19,6 +20,7 @@ locals {
       asg_max_size         = 3
       rds_instance_class   = "db.t3.micro"
       backup_retention     = 3
+      floci_port_offset    = 10
     }
     prod = {
       instance_type        = "t3.medium"
@@ -28,6 +30,7 @@ locals {
       asg_max_size         = 4
       rds_instance_class   = "db.t3.small"
       backup_retention     = 7
+      floci_port_offset    = 20
     }
   }
 

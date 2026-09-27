@@ -16,6 +16,7 @@ provider "aws" {
     iam                  = var.floci_endpoint
     rds                  = var.floci_endpoint
     s3                   = var.floci_endpoint
+    sns                  = var.floci_endpoint
     secretsmanager       = var.floci_endpoint
     ssm                  = var.floci_endpoint
     sts                  = var.floci_endpoint

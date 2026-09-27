@@ -1,3 +1,4 @@
+---
 sauvegarde_destination: /var/backups/taylor-shift
 sauvegarde_bucket: ""
 sauvegarde_aws_cli: /snap/bin/aws

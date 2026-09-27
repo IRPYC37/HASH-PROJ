@@ -10,3 +10,4 @@ ansible/roles/geerlingguy.*
 *.tfstate.*
 *.tfplan
 *.tfvars
+!terraform/envs/*.tfvars
