@@ -1,7 +1,7 @@
 ---
 - name: Créer le dossier de sauvegarde local
   ansible.builtin.file:
-    path: "{{ backup_destination }}"
+    path: "{{ sauvegarde_destination }}"
     state: directory
     owner: root
     group: root
@@ -16,11 +16,10 @@
     mode: "0700"
 
 - name: Installer AWS CLI pour l'envoi S3
-  ansible.builtin.apt:
-    name: awscli
-    state: present
-    update_cache: true
-  when: backup_bucket | length > 0
+  community.general.snap:
+    name: aws-cli
+    classic: true
+  when: not (application_use_local_database | default(false))
 
 - name: Installer le client MariaDB pour RDS
   ansible.builtin.apt:

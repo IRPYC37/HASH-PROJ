@@ -16,6 +16,10 @@
     - geerlingguy.git
     - durcissement
     - pare_feu
-    - application
     - nginx
+    - application
     - sauvegarde
+  post_tasks:
+    - name: Afficher l'URL de l'application
+      ansible.builtin.debug:
+        msg: "http://{{ application_public_url }}"

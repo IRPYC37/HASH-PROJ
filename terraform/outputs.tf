@@ -1,6 +1,11 @@
 output "alb_endpoint" {
-  description = "Endpoint HTTP public de l'application. En mode floci, Floci ne publie pas ce port automatiquement : lancer scripts/floci-tunnel.sh avant d'y accéder (voir README)."
-  value       = local.use_managed_services ? "http://${aws_lb.application[0].dns_name}" : "http://localhost:${var.application_public_port}"
+  description = "URL de l'application en mode aws."
+  value       = local.use_managed_services ? "http://${aws_lb.application[0].dns_name}" : null
+}
+
+output "floci_urls" {
+  description = "URL de l'application par instance en mode floci (relais local créé par Ansible)."
+  value       = local.use_managed_services ? null : { for name, port in local.floci_http_ports : name => "http://localhost:${port}" }
 }
 
 output "alb_dns_name" {
@@ -19,8 +24,8 @@ output "web_instances" {
 }
 
 output "database_secret_arn" {
-  description = "ARN du secret RDS, jamais sa valeur."
-  value       = aws_secretsmanager_secret.database.arn
+  description = "ARN du secret RDS (mode aws), jamais sa valeur."
+  value       = local.use_managed_services ? aws_secretsmanager_secret.database[0].arn : null
 }
 
 output "backup_bucket" {

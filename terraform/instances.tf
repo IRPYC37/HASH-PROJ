@@ -30,4 +30,10 @@ resource "aws_instance" "web" {
   associate_public_ip_address = local.use_managed_services
 
   tags = { Name = "${local.prefixe}-${each.key}", Role = "webservers" }
+
+  depends_on = [
+    aws_vpc_security_group_ingress_rule.web_ssh,
+    aws_vpc_security_group_ingress_rule.web_http,
+    aws_vpc_security_group_ingress_rule.web_http_floci,
+  ]
 }

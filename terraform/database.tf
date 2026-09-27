@@ -6,6 +6,7 @@ resource "aws_db_subnet_group" "main" {
 }
 
 resource "random_password" "db" {
+  count   = local.use_managed_services ? 1 : 0
   length  = 32
   special = false
 }
@@ -20,7 +21,7 @@ resource "aws_db_instance" "main" {
   max_allocated_storage   = 50
   db_name                 = var.db_name
   username                = var.db_username
-  password                = coalesce(var.db_password, random_password.db.result)
+  password                = coalesce(var.db_password, random_password.db[0].result)
   db_subnet_group_name    = aws_db_subnet_group.main[0].name
   vpc_security_group_ids  = [aws_security_group.rds.id]
   publicly_accessible     = false
@@ -31,18 +32,20 @@ resource "aws_db_instance" "main" {
 }
 
 resource "aws_secretsmanager_secret" "database" {
+  count                   = local.use_managed_services ? 1 : 0
   name                    = "${local.prefixe}/database"
   recovery_window_in_days = 0
   tags                    = { Name = "${local.prefixe}-database" }
 }
 
 resource "aws_secretsmanager_secret_version" "database" {
-  secret_id = aws_secretsmanager_secret.database.id
+  count     = local.use_managed_services ? 1 : 0
+  secret_id = aws_secretsmanager_secret.database[0].id
   secret_string = jsonencode({
-    host     = local.use_managed_services ? aws_db_instance.main[0].address : "127.0.0.1"
-    port     = local.use_managed_services ? aws_db_instance.main[0].port : 3306
+    host     = aws_db_instance.main[0].address
+    port     = aws_db_instance.main[0].port
     database = var.db_name
     username = var.db_username
-    password = coalesce(var.db_password, random_password.db.result)
+    password = coalesce(var.db_password, random_password.db[0].result)
   })
 }

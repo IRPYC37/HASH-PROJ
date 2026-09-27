@@ -43,7 +43,7 @@ resource "aws_iam_role_policy" "web_database_secret" {
     Statement = [{
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
-      Resource = aws_secretsmanager_secret.database.arn
+      Resource = aws_secretsmanager_secret.database[0].arn
     }]
   })
 }

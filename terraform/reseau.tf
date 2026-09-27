@@ -4,11 +4,6 @@ data "aws_availability_zones" "available" {
 
 locals {
   prefixe = "${var.project}-${var.environnement}"
-  tags_communs = {
-    Project     = var.project
-    Environment = var.environnement
-    ManagedBy   = "terraform"
-  }
 }
 
 resource "aws_vpc" "main" {

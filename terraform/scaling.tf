@@ -18,10 +18,11 @@ resource "aws_launch_template" "web" {
     #!/bin/bash
     set -eux
     apt-get update
-    apt-get install -y docker.io docker-compose-plugin awscli jq
+    apt-get install -y docker.io docker-compose-v2 jq
+    snap install aws-cli --classic
     systemctl enable --now docker
     mkdir -p /opt/taylor-shift
-    secret_json=$(aws secretsmanager get-secret-value --secret-id ${aws_secretsmanager_secret.database.arn} --query SecretString --output text --region ${var.region})
+    secret_json=$(/snap/bin/aws secretsmanager get-secret-value --secret-id ${aws_secretsmanager_secret.database[0].arn} --query SecretString --output text --region ${var.region})
     db_host=$(echo "$secret_json" | jq -r .host)
     db_port=$(echo "$secret_json" | jq -r .port)
     db_name=$(echo "$secret_json" | jq -r .database)
@@ -80,5 +81,19 @@ resource "aws_autoscaling_group" "web" {
     key                 = "Environment"
     value               = var.environnement
     propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_policy" "cpu" {
+  count                  = local.use_managed_services ? 1 : 0
+  name                   = "${local.prefixe}-cpu-target"
+  autoscaling_group_name = aws_autoscaling_group.web[0].name
+  policy_type            = "TargetTrackingScaling"
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = var.asg_cpu_target
   }
 }

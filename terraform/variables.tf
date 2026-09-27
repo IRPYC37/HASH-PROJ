@@ -56,23 +56,6 @@ variable "private_subnet_cidrs" {
   default     = ["10.42.11.0/24", "10.42.12.0/24"]
 }
 
-variable "instance_type" {
-  description = "Type EC2 des serveurs applicatifs."
-  type        = string
-  default     = "t3.micro"
-}
-
-variable "nombre_instances" {
-  description = "Nombre d'EC2 configurées par Ansible."
-  type        = number
-  default     = 1
-
-  validation {
-    condition     = var.nombre_instances >= 1 && var.nombre_instances <= 4
-    error_message = "nombre_instances doit être compris entre 1 et 4."
-  }
-}
-
 variable "ssh_public_key_path" {
   description = "Chemin de la clé publique SSH, relatif à terraform/."
   type        = string
@@ -104,27 +87,35 @@ variable "db_password" {
   default     = null
 }
 
-variable "application_public_port" {
-  description = <<-EOT
-    Port local utilisé pour joindre l'application en mode "floci" (via le
-    tunnel SSH de scripts/floci-tunnel.sh, Floci ne publiant que le port SSH
-    vers l'hôte). Par défaut 8080 ; à changer si ce port est déjà utilisé par
-    un autre service sur la machine de développement.
-  EOT
-  type        = number
-  default     = 8080
-}
-
 variable "allowed_ssh_cidr" {
-  description = <<-EOT
-    CIDR autorisé à joindre le port SSH des EC2 (security group "web").
-    Par défaut 0.0.0.0/0 : acceptable en mode "floci" (bac à sable local,
-    aucune exposition réelle sur Internet), mais À RESTREINDRE
-    IMPÉRATIVEMENT en mode "aws" à l'IP publique de l'opérateur, par
-    exemple "203.0.113.10/32" — via terraform.tfvars ou
-    -var='allowed_ssh_cidr=...'. Un `terraform plan`/`apply` en mode "aws"
-    avec la valeur par défaut affiche un avertissement (voir checks.tf).
-  EOT
+  description = "CIDR autorisé en SSH sur les EC2. 0.0.0.0/0 n'est accepté qu'en mode floci (bac à sable local)."
   type        = string
   default     = "0.0.0.0/0"
+
+  validation {
+    condition     = can(cidrhost(var.allowed_ssh_cidr, 0)) && (var.deployment_mode == "floci" || var.allowed_ssh_cidr != "0.0.0.0/0")
+    error_message = "allowed_ssh_cidr doit être un CIDR valide, et restreint (ex. 203.0.113.10/32) en mode aws."
+  }
+}
+
+variable "asg_cpu_target" {
+  description = "CPU moyen (%) visé par la politique de suivi de cible de l'ASG (mode aws)."
+  type        = number
+  default     = 60
+
+  validation {
+    condition     = var.asg_cpu_target > 10 && var.asg_cpu_target < 95
+    error_message = "asg_cpu_target doit être compris entre 10 et 95."
+  }
+}
+
+variable "floci_http_port_base" {
+  description = "Premier port du poste publiant le site en mode floci (web1 = base, web2 = base + 1, ...)."
+  type        = number
+  default     = 30080
+
+  validation {
+    condition     = var.floci_http_port_base >= 1024 && var.floci_http_port_base <= 65000
+    error_message = "floci_http_port_base doit être compris entre 1024 et 65000."
+  }
 }

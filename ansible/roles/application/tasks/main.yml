@@ -3,7 +3,6 @@
   ansible.builtin.apt:
     name:
       - docker.io
-      - docker-compose
       - python3-docker
     state: present
     update_cache: true
@@ -14,25 +13,16 @@
     state: started
     enabled: true
 
-- name: Créer le dossier de l'application
-  ansible.builtin.file:
-    path: "{{ application_project_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
 - name: Installer l'AWS CLI pour lire le secret RDS
-  ansible.builtin.apt:
-    name: awscli
-    state: present
-    update_cache: true
+  community.general.snap:
+    name: aws-cli
+    classic: true
   when: not application_use_local_database
 
 - name: Récupérer le secret RDS depuis Secrets Manager
   ansible.builtin.command:
     cmd: >-
-      aws secretsmanager get-secret-value
+      {{ application_aws_cli }} secretsmanager get-secret-value
       --secret-id {{ application_db_secret_arn }}
       --query SecretString --output text
       --region {{ application_aws_region }}
@@ -68,6 +58,44 @@
       - taylor_shift_db:/var/lib/mysql
   no_log: true
   when: application_use_local_database
+
+- name: Lire le relais HTTP local
+  ansible.builtin.command:
+    cmd: "docker container inspect {{ application_relais_nom }}"
+  delegate_to: localhost
+  become: false
+  register: application_relais
+  changed_when: false
+  failed_when: false
+  when: application_use_local_database
+
+- name: Publier le site sur le poste
+  ansible.builtin.shell: >-
+    docker rm -f {{ application_relais_nom }} >/dev/null 2>&1;
+    docker run -d --name {{ application_relais_nom }} --restart unless-stopped
+    -p {{ application_floci_http_port }}:80 {{ application_relais_image }}
+    {{ application_relais_commande | join(' ') }}
+  delegate_to: localhost
+  become: false
+  changed_when: true
+  when:
+    - application_use_local_database
+    - >-
+      application_relais.rc != 0
+      or (application_relais.stdout | from_json)[0].Config.Cmd != application_relais_commande
+      or not (application_relais.stdout | from_json)[0].State.Running
+      or (application_relais.stdout | from_json)[0].HostConfig.PortBindings['80/tcp'][0].HostPort
+         != application_floci_http_port | string
+
+- name: Télécharger l'image PrestaShop
+  community.docker.docker_image:
+    name: "{{ application_image }}"
+    source: pull
+    state: present
+  register: application_image_pull
+  retries: 5
+  delay: 10
+  until: application_image_pull is succeeded
 
 - name: Démarrer PrestaShop
   community.docker.docker_container:
@@ -105,8 +133,8 @@
     env:
       MYSQL_PWD: "{{ application_db_root_password | default(application_db_password, true) }}"
   register: application_current_domain
-  retries: 10
-  delay: 3
+  retries: 60
+  delay: 5
   until: application_current_domain.rc == 0
   changed_when: false
   no_log: true
