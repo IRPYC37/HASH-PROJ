@@ -112,7 +112,7 @@ variable "asg_cpu_target" {
 variable "floci_http_port_base" {
   description = "Premier port du poste publiant le site en mode floci (web1 = base, web2 = base + 1, ...)."
   type        = number
-  default     = 30080
+  default     = 8080
 
   validation {
     condition     = var.floci_http_port_base >= 1024 && var.floci_http_port_base <= 65000

@@ -12,7 +12,7 @@ application_db_secret_arn: ""
 application_aws_region: us-east-1
 application_environnement: dev
 application_aws_cli: /snap/bin/aws
-application_floci_http_port: 30080
+application_floci_http_port: 8080
 application_relais_nom: "taylor-shift-{{ application_environnement }}-http-{{ inventory_hostname }}"
 application_relais_image: alpine/socat:latest
 application_relais_commande:

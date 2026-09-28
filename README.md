@@ -9,7 +9,7 @@ déploie l'application. Tout tourne sur Floci, comme dans les labs.
 
 ```text
 Mode floci (défaut) :
-  navigateur -> localhost:30080 (relais socat) -> EC2 : Nginx :80 -> PrestaShop :8080 -> MariaDB (conteneur)
+  navigateur -> localhost:8080 (relais socat) -> EC2 : Nginx :80 -> PrestaShop :8080 -> MariaDB (conteneur)
 
 Mode aws (-var deployment_mode=aws) :
   Internet -> ALB :80 -> Auto Scaling Group (EC2 : PrestaShop) -> RDS MariaDB (subnet privé)
@@ -83,12 +83,12 @@ Le second passage doit finir avec `changed=0`.
 
 ### Accès à l'application
 
-En dev : http://localhost:30080. L'URL est aussi donnée par
+En dev : http://localhost:8080. L'URL est aussi donnée par
 `terraform -chdir=terraform output floci_urls` et affichée à la fin du playbook.
 
 Floci ne publie vers le poste que le port SSH des instances. Le rôle
 `application` lance donc sur le poste un petit conteneur relais (`socat`) qui
-renvoie vers Nginx. Ports utilisés : dev 30080, staging 30090, prod 30100
+renvoie vers Nginx. Ports utilisés : dev 8080, staging 8090, prod 8100
 (+1 par instance supplémentaire). Ce port sert aussi de domaine à PrestaShop.
 
 ### Vérifier la base
