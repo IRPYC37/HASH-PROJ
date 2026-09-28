@@ -1,5 +1,6 @@
 # Taylor Shift's Ticket Shop
 
+Groupe : Allan Pinto, Cyprien Fournier
 
 Déploiement de la boutique PrestaShop (image `prestashop/prestashop` de Docker
 Hub). Terraform crée l'infrastructure, Ansible configure les serveurs et
@@ -39,6 +40,13 @@ Sous Windows, cloner le dépôt dans le dossier Linux de WSL (`~/`) et pas dans
 ```bash
 floci start
 eval $(floci env)
+```
+
+Si `floci env` n'est pas disponible dans WSL, exporter les identifiants à la
+main :
+
+```bash
+export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1
 ```
 
 ## 3. Avant les commandes d'évaluation
