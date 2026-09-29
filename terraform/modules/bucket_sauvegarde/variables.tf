@@ -1,10 +1,10 @@
 variable "bucket_name" {
-  description = "Nom globalement unique du bucket de sauvegarde."
+  description = "Nom du bucket de sauvegarde."
   type        = string
 }
 
 variable "noncurrent_retention_days" {
-  description = "Durée de conservation d'une ancienne version d'objet, en jours."
+  description = "Nombre de jours de conservation des anciennes versions."
   type        = number
   default     = 30
 }

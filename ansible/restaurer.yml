@@ -5,7 +5,6 @@
   vars:
     restauration_archive: ""
     restauration_temporaire: /tmp/taylor-shift-restore
-    restauration_aws_cli: /snap/bin/aws
   tasks:
     - name: Vérifier le nom de l'archive
       ansible.builtin.assert:
@@ -37,31 +36,6 @@
         < "{{ restauration_temporaire }}/database.sql"
       no_log: true
       when: application_use_local_database | default(false)
-      changed_when: true
-
-    - name: Lire le secret RDS
-      ansible.builtin.command:
-        cmd: >-
-          {{ restauration_aws_cli }} secretsmanager get-secret-value
-          --secret-id {{ application_db_secret_arn }}
-          --query SecretString --output text
-          --region {{ application_aws_region }}
-      register: restauration_secret
-      changed_when: false
-      no_log: true
-      when: not (application_use_local_database | default(false))
-
-    - name: Restaurer RDS
-      ansible.builtin.shell: >-
-        mariadb -h "{{ (restauration_secret.stdout | from_json).host }}"
-        -P "{{ (restauration_secret.stdout | from_json).port }}"
-        -u "{{ (restauration_secret.stdout | from_json).username }}"
-        "{{ (restauration_secret.stdout | from_json).database }}"
-        < "{{ restauration_temporaire }}/database.sql"
-      environment:
-        MYSQL_PWD: "{{ (restauration_secret.stdout | from_json).password }}"
-      no_log: true
-      when: not (application_use_local_database | default(false))
       changed_when: true
 
     - name: Redémarrer PrestaShop
